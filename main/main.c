@@ -280,8 +280,7 @@ void init_wifi() {
   };
 
   ESP_ERROR_CHECK(esp_netif_init());
-  //ESP_ERROR_CHECK(esp_event_loop_create_default());
-
+  
   esp_netif_create_default_wifi_sta();
 
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -357,22 +356,11 @@ void init_mqtt(esp_mqtt_client_handle_t * mqtt_client_pt) {
     .credentials.authentication.password = MQTT_PWORD,
   };
 
-  //ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &mqtt_loop));
   *mqtt_client_pt = esp_mqtt_client_init(&mqtt_cfg);
   
   esp_mqtt_client_register_event(*mqtt_client_pt, ESP_EVENT_ANY_ID, mqtt_evt_handler, NULL);
   esp_mqtt_client_start(*mqtt_client_pt);
 }
-
-//void send_data_over_TLS(esp_mqtt_client_handle_t client_handle) {
-//  esp_partition_mmap_handle_t handle;
-//  const void * bin_addr;
-//  const esp_partition * part = esp_ota_get_running_partition();
-//  esp_partition_mmap(part, 0, part->size, ESP_PARTITION_MMAP_DATA, &bin_addr, &handle);
-//
-//  int bin_size = MIN(CONFIG_BROKER_BIN_SIZE_TO_SEND, part->size);
-//  int msg_id = esp_mqtt_client_publish(client_handle, "/topic/binary", bin_addr, bin_size, 0, 0);
-//}
 
 // ************************************************************
 // Main Function
