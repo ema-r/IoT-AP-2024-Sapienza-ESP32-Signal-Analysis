@@ -139,4 +139,20 @@ to the average value of about 0.3-0.25 seconds per MQTT publish operation. The
 reason for the initial delay is due to eventual enqueued packets that have been
 added while the actual MQTT or Wi-Fi connection is finishing the setup. The RTT
 for each publish operation is printed to console if the device is monitored, but
-requires publish QoS to be set over 0, as it requires ACK to function.
+requires publish QoS to be set over 0, as it requires ACKs to function.
+
+## System Performance
+### Latency
+As mentioned beforehand, the system operates by sending aggreagated data over
+MQTTS every 5 seconds. The MQTT latency means that during setup, the worst case
+scenario, latency for a single data point, between initial read and then
+delivary as an aggregated data point, can take up to ~8-9 seconds assuming
+connection setup hurdles. On a stable, already established connection, the
+connection time drops to generally >= 0.45 lowering this latency to ~5.5
+seconds.
+
+If we want to consider the generation of the data the moment the average is
+calculated, we only have to account for the delay for the calculation of the
+average + MQTT publishing over Wi-Fi.
+
+### Energy Savings
