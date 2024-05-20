@@ -81,6 +81,11 @@ operating in a continuous loop. Data is not saved to an array in this case:
 we only need an average so we sum it to a "sum" value and we increase a sample
 counter value.
 
+Due to the operations needed between each time interval, the sampling frequency
+drops, and can reach only ~64-68 KHz, compared to the 83,3 KHz for the non-interrupted sampling. This can be observed by defining the FORCE_MAX_SAMPL_FREQ macro, that forces the "optimal" sampling loop to operate at the max frequency.
+If operating under the 64 KHz roof, the interval callback doesn't influence
+the sampling rate.
+
 ### Function aggregation over a window
 As mentioned in the previous section, the function aggregate is performed via a
 moving window average, that operates on the number of samples taken during 5
@@ -96,4 +101,42 @@ sampling only writes to these values, and the callback only reads from them to
 obtain an average value, no mutex or any other kind of exclusive access data
 structure was needed.
 
+### Transmission to MQTT Server and latency
+During the timer callback, the program sends the calculated value to the
+configured MQTT broker. The MQTT protocol is secured by TLS: while this adds
+overall communication costs, the most of it is during the single TLS handshake
+while the connection is estabilished, and the advantages in security are well
+worth it. Mutual TLS authentication was however not implemented, resorting to
+(encrypted) username and password pairs to authenticate to the broker.
 
+To perform MQTT operations, the ESP MQTT client was utilized. The client
+requires, like most other ESP libraries, an initialization with a argument
+struct, and an event loop callback function that handles the events sent by the
+MQTT client. The default event loop is shared between Wi-fi and MQTT, as the MQTT client is tricky to configure to utilize any other loop. They do employ
+2 different event handlers however. 
+
+Given that we only need to send data to the broker for this application, the
+MQTT event handler only takes care of connection/disconnect events, and ACKs
+for published messages with QoS > 0.
+
+Connection from local network to wider internet is handled via Wi-Fi.
+Configuration is done via the usual order: arg structs are create, and then
+the ESP driver is initialized with the given structs. We also initialize IP, so
+that we can carry TCP/IP data over our Wi-Fi connection. We create another event
+handler that takes care of TCP/IP and Wi-Fi events, discriminating on a
+"event_base" basis. If the Wi-Fi connection fails, the event callback will be
+activated and a a reconnection will be attempted. If a connection is not
+established yet, a connection will be attempted.
+IP events will be handled to make sure that the connection is correctly
+established and an IP address for the device is obtained.
+
+RTT is calculated via a global mqtt_clock variable that operates by taking a
+snapshot of the UNIX clock when MQTT is published during the timer interrupt.
+This is used to calculate the time passed when the ACK is received by the MQTT
+event handler.
+When the connection is first estabilished, the RTT quickly drops from 3 seconds
+to the average value of about 0.3-0.25 seconds per MQTT publish operation. The
+reason for the initial delay is due to eventual enqueued packets that have been
+added while the actual MQTT or Wi-Fi connection is finishing the setup. The RTT
+for each publish operation is printed to console if the device is monitored, but
+requires publish QoS to be set over 0, as it requires ACK to function.
