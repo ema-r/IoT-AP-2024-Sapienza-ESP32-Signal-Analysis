@@ -15,10 +15,8 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_timer.h"
-//#include "esp_wifi_default.h"
 #include "esp_adc/adc_continuous.h"
 
-//#include "esp_wifi_types_generic.h"
 #include "hal/adc_types.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
@@ -95,11 +93,9 @@ void adc_sample_single_block(adc_continuous_handle_t * handle, float * output_ar
       for (int i = 0; i < ret_num && j < TOTAL_READ_LEN; i += SOC_ADC_DIGI_RESULT_BYTES) {
         adc_digi_output_data_t *p = (adc_digi_output_data_t*)&result[i];
         output_array[j] = ((p)->type2.data) * 1.0f;
-        //ESP_LOGI("ADC SAMPLER", "Value: %f", output_array[j]);
         j++;
       }
     }
-    //vTaskDelay(1);
   }
   
   ESP_ERROR_CHECK(adc_continuous_stop(*handle));
@@ -130,7 +126,6 @@ void adc_sample_test_freq(adc_continuous_handle_t * handle, uint32_t total_size)
         j++;
       }
     }
-    //vTaskDelay(1);
   }
   
   ESP_ERROR_CHECK(adc_continuous_stop(*handle));
@@ -181,7 +176,6 @@ float calculate_average_value(float * sampled_block, uint16_t sample_size) {
 
 uint32_t threshold_find_max_freq(float * fft_array, uint16_t fft_size, int16_t threshold) {
   for (int i = fft_size - 1; i >= 0; i--) {
-    // printf("%f\n", fft_array[i]);
     if (fft_array[i] >= threshold) {
       ESP_LOGI(FFT_TAG, "earliest good freq found at %d", i);
       return i * SOC_ADC_SAMPLE_FREQ_THRES_HIGH / (fft_size*2);
@@ -205,11 +199,7 @@ void calculate_max_freq(float * input_arr, uint32_t * output_float) {
   float * fft_buffer = (float *)calloc(RESULTING_SAMPLES*2, sizeof(float));
   float * wind = (float *)calloc(RESULTING_SAMPLES*2, sizeof(float));
 
-  //for (int i = 0; i < RESULTING_SAMPLES; i++) {
-  //  fft_buffer[i] = input_arr[i];
-  //}
   dsps_wind_hann_f32(wind, RESULTING_SAMPLES);
-  //dsps_tone_gen_f32(input_arr, RESULTING_SAMPLES, 1.0, 0.49, 0);
 
   for (int i = 0; i < RESULTING_SAMPLES; i++) {
     fft_buffer[i*2] = input_arr[i] * wind[i];
@@ -228,8 +218,6 @@ void calculate_max_freq(float * input_arr, uint32_t * output_float) {
   for (int i = 0; i < fft_size; i++) {
     fft_buffer[i] = 10 * log10f((fft_buffer[i*2] * fft_buffer[i*2] + fft_buffer[i*2+1] * fft_buffer[i*2+1]) / RESULTING_SAMPLES);
   }
-
-  //dsps_view(fft_buffer, fft_size/2, 64, 10 , -60, 40, '|');
 
   // calculate mean
   float avg = calculate_average_value(fft_buffer, fft_size/2);
