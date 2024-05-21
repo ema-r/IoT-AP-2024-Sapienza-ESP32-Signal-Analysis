@@ -83,8 +83,8 @@ we only need an average so we sum it to a "sum" value and we increase a sample
 counter value.
 
 Due to the operations needed between each time interval, the sampling frequency
-drops, and can reach only ~64-68 KHz, compared to the 83,3 KHz for the non-interrupted sampling. This can be observed by defining the FORCE_MAX_SAMPL_FREQ macro, that forces the "optimal" sampling loop to operate at the max frequency.
-If operating under the 64 KHz roof, the interval callback doesn't influence
+drops, and can reach only ~67-69 KHz, compared to the 83,3 KHz for the non-interrupted sampling. This can be observed by defining the FORCE_MAX_SAMPL_FREQ macro, that forces the "optimal" sampling loop to operate at the max frequency.
+If operating under a 64 KHz roof, the interval callback doesn't influence
 the sampling rate.
 
 ### Function aggregation over a window
@@ -171,14 +171,161 @@ router particularly close by. It's likely that in a real scenario, the latency
 could vastly increase.
 It's worth noting that the local edge router test had to
 be performed unencrypted due to platform limitation. While the effect of this
-decision are vastly negligible in this section, it's worth pointing out as this
-capture doesn't depict the initial latency caused by the TLS handshake. In this,
-unencrypted case, the initialization of the connection is in the hundredths of a
-second.
+decision are vastly negligible in this section, barring the increased latency
+thanks to the need of symmetric encryption for session data, it's worth pointing out as this capture doesn't depict the initial latency "spike" caused by the TLS handshake. In this, unencrypted case, the initialization of the connection is in the hundredths of a second.
 
 ### Energy Savings
+The energy analysis was performed via an INA 219 device connected to another
+ATMEGA board (gently lent by another student). Three tests were performed: two
+with the network functionalities of the project disabled to just gauge the
+energy cost for sampling and analysis of data at max and optimized sampling
+frequency (forced 1/10 of the max sampling frequency for this test), plus another test with optimized sampling frequency (again, 1/10 of max) and network
+functionalities working to gauge the energy cost increase when operating
+(securely) on a wireless network. The INA output was sampled every 2 seconds.
+The main focus of the sampling operation was the final loop in the main
+function, that simply samples as much ADC data as it can before the timer
+callback is called to perform an average.
 #### Sampling frequency
+The two tests were run respectively at "as-fast-as-possible" sampling, which
+produced the aforementioned 65 KHz sampling frequency when performing other
+calculations, and at a lowered (1/10 of SOC_ADC_SAMPLE_THRES_HIGH, resulting in about 8 KHz) frequency, to check for any kind of relationship between the drop in sampling rate and in power usage.
+
+At Max sampling rate, the device averaged a current draw of 50 mA, with periodic
+decreases to 45, likely triggered by the timer callback function activating
+and disrupting the high speed sampling. After the drop the current draw rapidly
+rises back to 50 mA
+
+```
+Bus Voltage: 1.06 V
+Shunt Voltage: 5.12 mV
+Load Voltage: 1.07 V
+Current: 50.70 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.55 mV
+Load Voltage: 1.06 V
+Current: 50.90 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.92 mV
+Load Voltage: 1.06 V
+Current: 51.30 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.47 mV
+Load Voltage: 1.06 V
+Current: 45.80 mA
+Power: 50.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.48 mV
+Load Voltage: 1.06 V
+Current: 46.30 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.48 mV
+Load Voltage: 1.06 V
+Current: 49.90 mA
+Power: 52.00 mW
+```
+
+The "optimal" sampling rate on the other hand produces a consistent, even if
+not particularly major drop in current draw: sitting at a constant 45 mA
+
+```
+Bus Voltage: 1.06 V
+Shunt Voltage: 5.07 mV
+Load Voltage: 1.07 V
+Current: 44.50 mA
+Power: 46.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.48 mV
+Load Voltage: 1.06 V
+Current: 44.70 mA
+Power: 46.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.47 mV
+Load Voltage: 1.07 V
+Current: 45.00 mA
+Power: 46.00 mW
+```
+
+The drop of "just" 5 mA during pure sampling suggests that at this rate, the
+device consumes just about the same power as it does during the timer interrupt,
+i.e. the energy cost of sampling becomes negligible when compared to the general
+current draw of the device. Another, sampling-less run of the system could've
+confirmed or dismissed this hypothesis.
+
 #### Networking costs.
+The energy costs of the "full" system, networking included, is far more
+interesting. While obviously the current drain increases, the way it does so
+vastly depends on the status of the Wi-Fi client, and the MQTTS broker
+connection. If we run the program with the INA "listening" we get various big
+current draw spikes that happen to roughly correspond to the ESP32 attempting to
+join the wireless network, and opening a connection with the broker (an
+operation which involves a relatively costly TLS handshake).
+
+```
+Bus Voltage: 1.06 V
+Shunt Voltage: 5.96 mV
+Load Voltage: 1.07 V
+Current: 59.30 mA
+Power: 62.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 11.73 mV
+Load Voltage: 1.07 V
+Current: 112.40 mA
+Power: 118.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.95 mV
+Load Voltage: 1.06 V
+Current: 48.90 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 11.77 mV
+Load Voltage: 1.07 V
+Current: 110.80 mA
+Power: 118.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.96 mV
+Load Voltage: 1.06 V
+Current: 49.10 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.89 mV
+Load Voltage: 1.06 V
+Current: 49.70 mA
+Power: 52.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 11.77 mV
+Load Voltage: 1.07 V
+Current: 127.90 mA
+Power: 134.00 mW
+
+Bus Voltage: 1.06 V
+Shunt Voltage: 4.86 mV
+Load Voltage: 1.06 V
+Current: 54.70 mA
+Power: 52.00 mW
+```
+Once the initial setup is done, the current drain subsides at around 48 to 55
+mA, a variation likely depending on the device elaborating and transmitting
+data to the broker. The event loops needed for TCP/IP, Wi-Fi and MQTT handling
+also likely take a toll on the power consumption, considering the "base" value
+with other operations going on has increased by 3 mA between this and the 
+connectionless optimized sampling loop.
 
 ### Packet size
 The MQTT data is sent over TLS; this means some slight overhead in terms of
