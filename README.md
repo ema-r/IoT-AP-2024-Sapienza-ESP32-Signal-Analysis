@@ -327,7 +327,28 @@ also likely take a toll on the power consumption, considering the "base" value
 with other operations going on has increased by 3 mA between this and the 
 connectionless optimized sampling loop.
 
-### Packet size
+### Amount of data sent
 The MQTT data is sent over TLS; this means some slight overhead in terms of
 transmitted data, especially in the thankfully rare evenience that requires
-setting or resetting the connection.
+setting or resetting the connection. Sadly, the platform utilized as an MQTT
+broker prevented easy collection of network data to get some concrete information on datagram sizes: the standard cloud solution doesn't allow for
+sniffing obviously, and the free trial of the locally run instance isn't setup
+OOTB for TLS.
+As a result the gathered data is only significant for a non-TLS utilizing
+instance of the program.
+TLS would obviously add some (well worth it) overhead, starting with the
+~6 Kb worth of handshake data. With the handshake out of the way, the protocol
+will add some bytes worth of header data.
+
+Each MQTT publish message will be around 70 to 80 bytes worth of data, with 
+the last 20 containing the MQTT data: 1 byte of header flags, 1 byte of message length, topic and topic length (4 and 2 bytes here), then the 2 byte message
+id and a variable length of message (it is a encoded as a string during publishing).
+
+MQTTs ACKs (optional depending on QoS settings) save about ~16 bytes by only
+containing info on what message they refer to at MQTT level.
+
+The MQTT CONN and ACK messages are similiarly succinct, with the CONN message
+only adding 26 bytes on top of the chosen lower layer protocols, distributing
+some basic information and data about the device initiating the connection; some
+flags define the characteristics of the requested connection.
+
