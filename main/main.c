@@ -178,7 +178,7 @@ uint32_t threshold_find_max_freq(float * fft_array, uint16_t fft_size, int16_t t
   for (int i = fft_size - 1; i >= 0; i--) {
     if (fft_array[i] >= threshold) {
       ESP_LOGI(FFT_TAG, "earliest good freq found at %d", i);
-      return i * SOC_ADC_SAMPLE_FREQ_THRES_HIGH / (fft_size*2);
+      return i * SOC_ADC_SAMPLE_FREQ_THRES_HIGH / (fft_size*4);
     }
   }
   return 0;
